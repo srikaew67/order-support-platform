@@ -112,4 +112,27 @@ class ProductControllerIT {
         mockMvc.perform(get("/api/v1/products?size=0"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test void malformedPageSizeAndIdUseStandardErrors() throws Exception {
+        for (String path : java.util.List.of(
+                "/api/v1/products?page=abc", "/api/v1/products?size=abc", "/api/v1/products/not-a-uuid")) {
+            mockMvc.perform(get(path).header("X-Correlation-ID", "catalog-bad-input"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                    .andExpect(jsonPath("$.message").isNotEmpty())
+                    .andExpect(jsonPath("$.correlationId").value("catalog-bad-input"));
+        }
+    }
+
+    @Test void priceMustFitDatabasePrecisionAndScale() throws Exception {
+        String admin = token(Role.ADMIN);
+        for (String price : java.util.List.of("12.345", "12345678901.00")) {
+            mockMvc.perform(post("/api/v1/products").header("Authorization", admin)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"sku\":\"PRICE-" + price + "\",\"name\":\"Price\",\"price\":" + price + ",\"stockQuantity\":1}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                    .andExpect(jsonPath("$.fieldErrors.price").exists());
+        }
+    }
 }

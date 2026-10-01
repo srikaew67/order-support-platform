@@ -8,6 +8,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class ProductService {
@@ -52,7 +54,7 @@ public class ProductService {
         if (products.existsBySku(request.sku())) throw conflict();
         ProductResponse result = ProductResponse.from(products.save(new Product(request.sku(), request.name(),
                 request.description(), request.price(), request.stockQuantity())));
-        invalidate();
+        invalidateAfterCommit();
         return result;
     }
 
@@ -62,7 +64,7 @@ public class ProductService {
         if (products.existsBySkuAndIdNot(request.sku(), id)) throw conflict();
         product.update(request.sku(), request.name(), request.description(), request.price(), request.stockQuantity());
         ProductResponse result = ProductResponse.from(products.save(product));
-        invalidate();
+        invalidateAfterCommit();
         return result;
     }
 
@@ -71,7 +73,7 @@ public class ProductService {
         Product product = activeProduct(id);
         product.deactivate();
         products.save(product);
-        invalidate();
+        invalidateAfterCommit();
     }
 
     private Product activeProduct(UUID id) {
@@ -81,6 +83,12 @@ public class ProductService {
 
     private ApiException conflict() {
         return new ApiException(HttpStatus.CONFLICT, "CONFLICT", "SKU already exists");
+    }
+
+    private void invalidateAfterCommit() {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override public void afterCommit() { invalidate(); }
+        });
     }
 
     private void invalidate() {
