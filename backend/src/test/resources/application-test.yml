@@ -9,3 +9,6 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+security:
+  jwt:
+    secret: test-secret-must-be-at-least-thirty-two-characters-long
