@@ -17,5 +17,6 @@ public class Product {
   @Column(name="created_at", nullable=false) private Instant createdAt;
   @Column(name="updated_at", nullable=false) private Instant updatedAt;
   protected Product() {}
+  public Product(String sku,String name,String description,BigDecimal price,int stockQuantity){this.id=UUID.randomUUID();this.sku=sku;this.name=name;this.description=description;this.price=price;this.stockQuantity=stockQuantity;this.active=true;this.createdAt=Instant.now();this.updatedAt=this.createdAt;}
   public UUID getId(){return id;} public String getSku(){return sku;} public String getName(){return name;} public BigDecimal getPrice(){return price;} public int getStockQuantity(){return stockQuantity;} public boolean isActive(){return active;}
 }
