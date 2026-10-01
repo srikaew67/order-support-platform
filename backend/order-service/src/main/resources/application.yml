@@ -1,9 +1,6 @@
 spring:
   application:
     name: order-service
-security:
-  jwt:
-    secret: ${JWT_SECRET:local-development-secret-change-before-deploying}
   datasource:
     url: ${DB_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/order_support}}
     username: ${DB_USERNAME:${SPRING_DATASOURCE_USERNAME:order_support}}
@@ -14,6 +11,10 @@ security:
     open-in-view: false
   flyway:
     enabled: true
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:local-development-secret-change-before-deploying}
 
 management:
   endpoints:
