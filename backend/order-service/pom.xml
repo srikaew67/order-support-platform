@@ -12,10 +12,10 @@
     </parent>
 
     <groupId>com.cdg</groupId>
-    <artifactId>order-support-api</artifactId>
+    <artifactId>order-service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>order-support-api</name>
-    <description>Order and support management API</description>
+    <name>order-service</name>
+    <description>Authentication, catalog, and order API</description>
 
     <properties>
         <java.version>21</java.version>

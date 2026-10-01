@@ -1,6 +1,6 @@
 .tools/
 .env
-backend/target/
+**/target/
 frontend/node_modules/
 frontend/dist/
 .angular/
