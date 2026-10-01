@@ -29,6 +29,7 @@ describe('AuthService', () => {
     request.flush({ accessToken: 'jwt-123', role: 'CUSTOMER', displayName: 'Customer' });
     expect(role).toBe('CUSTOMER');
     expect(localStorage.getItem('accessToken')).toBe('jwt-123');
+    expect(service.role()).toBe('CUSTOMER');
   });
 
   it('registers through the order API and stores its token', () => {

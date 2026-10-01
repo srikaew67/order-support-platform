@@ -90,6 +90,20 @@ class AuthControllerIT {
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
     }
 
+    @Test void meReturnsAuthenticatedCustomer() throws Exception {
+        String registered = mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"me@example.com\",\"password\":\"SecurePass123!\",\"displayName\":\"Me User\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String token = new com.fasterxml.jackson.databind.ObjectMapper().readTree(registered)
+                .get("accessToken").asText();
+        mockMvc.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName").value("Me User"))
+                .andExpect(jsonPath("$.role").value("CUSTOMER"));
+    }
+
     @Test void validationErrorsUseStandardShape() throws Exception {
         mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"invalid\",\"password\":\"short\",\"displayName\":\"\"}"))

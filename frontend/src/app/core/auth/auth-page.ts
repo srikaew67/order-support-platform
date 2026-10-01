@@ -21,6 +21,7 @@ import { AuthService } from './auth.service';
       </form>
       @if (isRegister) { <p>Already have an account? <a routerLink="/login">Sign in</a></p> }
       @else { <p>New here? <a routerLink="/register">Create an account</a></p> }
+      <p><a routerLink="/products">Browse products</a></p>
     </section>
   `,
   styles: [`

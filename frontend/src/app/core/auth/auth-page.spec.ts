@@ -23,6 +23,7 @@ describe('AuthPage', () => {
     const fixture = TestBed.createComponent(AuthPage);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Create account');
+    expect(fixture.nativeElement.querySelector('a[href="/products"]')).toBeTruthy();
     const page = fixture.componentInstance;
     page.email = 'new@example.com';
     page.password = 'SecurePass123!';

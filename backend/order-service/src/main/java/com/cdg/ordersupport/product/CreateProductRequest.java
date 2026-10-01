@@ -1,3 +1,15 @@
 package com.cdg.ordersupport.product;
-import jakarta.validation.constraints.*; import java.math.BigDecimal;
-public record CreateProductRequest(@NotBlank String sku,@NotBlank String name,String description,@NotNull @Positive BigDecimal price,@PositiveOrZero int stockQuantity) {}
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
+
+public record CreateProductRequest(
+        @NotBlank @Size(max = 80) String sku,
+        @NotBlank @Size(max = 255) String name,
+        String description,
+        @NotNull @Positive BigDecimal price,
+        @PositiveOrZero int stockQuantity) {}

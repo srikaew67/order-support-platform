@@ -48,6 +48,7 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-order_support}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-order_support}
       JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-before-deploying}
+      REDIS_HOST: redis
     ports:
       - "8081:8081"
     depends_on:

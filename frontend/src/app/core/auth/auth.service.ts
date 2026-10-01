@@ -17,15 +17,22 @@ export class AuthService {
 
   login(email: string, password: string) {
     return this.http.post<AuthSession>(`${this.authUrl}/login`, { email, password })
-      .pipe(tap(session => this.storeSession(session.accessToken)));
+      .pipe(tap(session => this.storeSession(session.accessToken, session.role)));
   }
 
   register(email: string, password: string, displayName: string) {
     return this.http.post<AuthSession>(`${this.authUrl}/register`, { email, password, displayName })
-      .pipe(tap(session => this.storeSession(session.accessToken)));
+      .pipe(tap(session => this.storeSession(session.accessToken, session.role)));
   }
 
-  storeSession(accessToken: string): void { localStorage.setItem('accessToken', accessToken); }
-  clearSession(): void { localStorage.removeItem('accessToken'); }
+  storeSession(accessToken: string, role?: AuthSession['role']): void {
+    localStorage.setItem('accessToken', accessToken);
+    if (role) localStorage.setItem('role', role);
+  }
+  clearSession(): void { localStorage.removeItem('accessToken'); localStorage.removeItem('role'); }
   isAuthenticated(): boolean { return Boolean(localStorage.getItem('accessToken')); }
+  role(): AuthSession['role'] | null {
+    const role = localStorage.getItem('role');
+    return role === 'CUSTOMER' || role === 'SUPPORT' || role === 'ADMIN' ? role : null;
+  }
 }
