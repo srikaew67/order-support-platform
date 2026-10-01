@@ -10,3 +10,10 @@ export const adminGuard: CanActivateFn = () => {
   if (!auth.isAuthenticated()) return router.createUrlTree(['/login']);
   return auth.role() === 'ADMIN' || router.createUrlTree(['/products']);
 };
+
+export const customerGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  if (!auth.isAuthenticated()) return router.createUrlTree(['/login']);
+  return auth.role() === 'CUSTOMER' || router.createUrlTree(['/orders']);
+};

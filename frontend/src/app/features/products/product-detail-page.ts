@@ -18,6 +18,9 @@ import { Product, ProductService } from './product.service';
         <dl><dt>SKU</dt><dd>{{ product.sku }}</dd>
           <dt>Price</dt><dd>{{ product.price | currency }}</dd>
           <dt>In stock</dt><dd>{{ product.stockQuantity }}</dd></dl>
+        @if (isCustomer && product.stockQuantity > 0) {
+          <a routerLink="/orders/new" [queryParams]="{ productId: product.id }">Order this product</a>
+        }
         @if (isAdmin) {
           <a [routerLink]="['/products', product.id, 'edit']">Edit product</a>
           <button type="button" (click)="remove()" [disabled]="deleting">{{ deleting ? 'Deleting…' : 'Delete product' }}</button>
@@ -37,6 +40,7 @@ export class ProductDetailPage implements OnInit {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   readonly isAdmin = this.auth.role() === 'ADMIN';
+  readonly isCustomer = this.auth.role() === 'CUSTOMER';
   product: Product | null = null;
   loading = false;
   deleting = false;

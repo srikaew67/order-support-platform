@@ -7,6 +7,8 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+import com.cdg.ordersupport.common.ApiException;
+import org.springframework.http.HttpStatus;
 
 @Entity
 @Table(name = "products")
@@ -47,6 +49,19 @@ public class Product {
     public void deactivate() {
         this.active = false;
         this.updatedAt = Instant.now();
+    }
+
+    public void reserve(int quantity) {
+        if (quantity > stockQuantity) {
+            throw new ApiException(HttpStatus.CONFLICT, "INSUFFICIENT_STOCK", "Not enough stock for product " + sku);
+        }
+        stockQuantity -= quantity;
+        updatedAt = Instant.now();
+    }
+
+    public void restore(int quantity) {
+        stockQuantity += quantity;
+        updatedAt = Instant.now();
     }
 
     public UUID getId() { return id; }

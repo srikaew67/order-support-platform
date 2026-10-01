@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { authGuard, adminGuard } from './auth.guard';
+import { authGuard, adminGuard, customerGuard } from './auth.guard';
 import { provideHttpClient } from '@angular/common/http';
 
 describe('authGuard', () => {
@@ -24,5 +24,12 @@ describe('authGuard', () => {
     localStorage.setItem('role', 'CUSTOMER');
     const result = TestBed.runInInjectionContext(() => adminGuard({} as never, {} as never));
     expect(result).toEqual(TestBed.inject(Router).createUrlTree(['/products']));
+  });
+
+  it('blocks support users from the order creation route', () => {
+    localStorage.setItem('accessToken', 'jwt-123');
+    localStorage.setItem('role', 'SUPPORT');
+    const result = TestBed.runInInjectionContext(() => customerGuard({} as never, {} as never));
+    expect(result).toEqual(TestBed.inject(Router).createUrlTree(['/orders']));
   });
 });

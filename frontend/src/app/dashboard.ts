@@ -5,7 +5,7 @@ import { AuthService } from './core/auth/auth.service';
 @Component({
   selector: 'app-dashboard',
   imports: [RouterLink],
-  template: `<section><h2>Dashboard</h2><p>You are signed in.</p><a routerLink="/products">Browse products</a> <button type="button" (click)="logout()">Sign out</button></section>`
+  template: `<section><h2>Dashboard</h2><p>You are signed in.</p><a routerLink="/products">Browse products</a> · <a routerLink="/orders">View orders</a> <button type="button" (click)="logout()">Sign out</button></section>`
 })
 export class Dashboard {
   private readonly auth = inject(AuthService);
