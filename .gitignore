@@ -1,0 +1,9 @@
+.tools/
+.env
+backend/target/
+frontend/node_modules/
+frontend/dist/
+.angular/
+.idea/
+.vscode/
+*.iml

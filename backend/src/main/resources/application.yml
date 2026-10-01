@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: order-support-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/order_support}
+    username: ${DB_USERNAME:order_support}
+    password: ${DB_PASSWORD:order_support}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
