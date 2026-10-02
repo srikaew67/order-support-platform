@@ -8,8 +8,14 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: support
     open-in-view: false
   flyway:
+    schemas: support
+    default-schema: support
+    create-schemas: true
     table: support_flyway_schema_history
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
@@ -26,6 +32,8 @@ security:
 services:
   order:
     url: ${ORDER_SERVICE_URL:http://localhost:8081}
+    connect-timeout: ${ORDER_SERVICE_CONNECT_TIMEOUT:2s}
+    read-timeout: ${ORDER_SERVICE_READ_TIMEOUT:3s}
 server:
   port: ${SERVER_PORT:8082}
 management:

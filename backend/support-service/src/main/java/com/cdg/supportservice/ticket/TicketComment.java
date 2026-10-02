@@ -8,7 +8,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "ticket_comments")
+@Table(name = "ticket_comments", schema = "support")
 public class TicketComment {
     @Id private UUID id;
     @Column(name = "ticket_id", nullable = false) private UUID ticketId;

@@ -14,11 +14,13 @@ public class TicketService {
     private final TicketRepository tickets;
     private final TicketCommentRepository comments;
     private final OrderLookupClient orders;
+    private final SupportAgentLookupClient agents;
     private final TicketOutboxRepository outbox;
     private final TicketOutboxDispatcher dispatcher;
     public TicketService(TicketRepository tickets, TicketCommentRepository comments,
-            OrderLookupClient orders, TicketOutboxRepository outbox, TicketOutboxDispatcher dispatcher) {
-        this.tickets = tickets; this.comments = comments; this.orders = orders;
+            OrderLookupClient orders, SupportAgentLookupClient agents,
+            TicketOutboxRepository outbox, TicketOutboxDispatcher dispatcher) {
+        this.tickets = tickets; this.comments = comments; this.orders = orders; this.agents = agents;
         this.outbox = outbox; this.dispatcher = dispatcher;
     }
     @Transactional public TicketResponse create(TicketRequests.Create request, Authentication auth, String authorization) {
@@ -39,11 +41,18 @@ public class TicketService {
         return response(visible(id, auth));
     }
     @Transactional public TicketResponse update(UUID id, TicketRequests.Update request,
-            Authentication auth, String correlationId) {
+            Authentication auth, String authorization, String correlationId) {
         if (!staff(auth)) throw new TicketException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Access denied");
         SupportTicket ticket = tickets.findForUpdate(id).orElseThrow(() -> missing());
         if (request.status() == null && request.assigneeId() == null && !Boolean.TRUE.equals(request.assignToMe()))
             throw new TicketException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Status or assignee is required");
+        UUID assignee = Boolean.TRUE.equals(request.assignToMe()) ? userId(auth) : request.assigneeId();
+        if (assignee != null) {
+            if (auth.getAuthorities().stream().noneMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"))
+                    && !assignee.equals(userId(auth)))
+                throw new TicketException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Support agents can only assign themselves");
+            agents.validate(assignee, authorization);
+        }
         if (request.status() != null && request.status() != ticket.getStatus()) {
             if (!allowed(ticket.getStatus(), request.status()))
                 throw new TicketException(HttpStatus.CONFLICT, "INVALID_TRANSITION", "Invalid ticket status transition");
@@ -54,13 +63,7 @@ public class TicketService {
                 @Override public void afterCommit() { dispatcher.tryPublish(event.eventId()); }
             });
         }
-        if (Boolean.TRUE.equals(request.assignToMe())) ticket.assign(userId(auth));
-        else if (request.assigneeId() != null) {
-            if (auth.getAuthorities().stream().noneMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"))
-                    && !request.assigneeId().equals(userId(auth)))
-                throw new TicketException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Support agents can only assign themselves");
-            ticket.assign(request.assigneeId());
-        }
+        if (assignee != null) ticket.assign(assignee);
         return response(ticket);
     }
     @Transactional public TicketResponse comment(UUID id, TicketRequests.Comment request, Authentication auth) {

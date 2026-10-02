@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "support_tickets")
+@Table(name = "support_tickets", schema = "support")
 public class SupportTicket {
     @Id private UUID id;
     @Column(name = "customer_id", nullable = false) private UUID customerId;

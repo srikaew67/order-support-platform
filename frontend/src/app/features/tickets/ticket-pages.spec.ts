@@ -45,6 +45,24 @@ describe('Ticket pages', () => {
     create.flush(ticket);
     http.verify();
   });
+  it('lets an admin assign a verified support agent ID', () => {
+    localStorage.setItem('role', 'ADMIN');
+    TestBed.configureTestingModule({ imports: [TicketDetailPage],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]),
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => 'ticket-1' } } } }] });
+    const fixture = TestBed.createComponent(TicketDetailPage);
+    fixture.detectChanges();
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne(`${base}/ticket-1`).flush(ticket);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('Assign to me');
+    fixture.componentInstance.supportAgentId = 'agent-1';
+    fixture.componentInstance.assignAgent();
+    const assignment = http.expectOne(`${base}/ticket-1`);
+    expect(assignment.request.body).toEqual({ assigneeId: 'agent-1' });
+    assignment.flush({ ...ticket, assigneeId: 'agent-1' });
+    http.verify();
+  });
   it('lets a support agent advance status and add a comment', () => {
     localStorage.setItem('role', 'SUPPORT');
     TestBed.configureTestingModule({ imports: [TicketDetailPage],

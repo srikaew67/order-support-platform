@@ -37,8 +37,9 @@ public class TicketController {
     }
     @PatchMapping("/{id}") @PreAuthorize("hasAnyRole('SUPPORT', 'ADMIN')")
     public TicketResponse update(@PathVariable UUID id, @Valid @RequestBody TicketRequests.Update request,
-            Authentication auth, @RequestAttribute(CorrelationIdFilter.ATTRIBUTE) String correlationId) {
-        return tickets.update(id, request, auth, correlationId);
+            Authentication auth, @RequestHeader("Authorization") String authorization,
+            @RequestAttribute(CorrelationIdFilter.ATTRIBUTE) String correlationId) {
+        return tickets.update(id, request, auth, authorization, correlationId);
     }
     @PostMapping("/{id}/comments")
     public ResponseEntity<TicketResponse> comment(@PathVariable UUID id, @Valid @RequestBody TicketRequests.Comment request,

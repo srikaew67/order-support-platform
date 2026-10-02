@@ -34,7 +34,7 @@ class TicketOutboxIT {
     @MockBean TicketEventPublisher publisher;
     @BeforeEach void clean() { clearData(); }
     @AfterEach void cleanAfter() { clearData(); }
-    private void clearData() { jdbc.update("DELETE FROM ticket_outbox"); jdbc.update("DELETE FROM ticket_comments"); tickets.deleteAll(); }
+    private void clearData() { jdbc.update("DELETE FROM support.ticket_outbox"); jdbc.update("DELETE FROM support.ticket_comments"); tickets.deleteAll(); }
     @Test void failedPublishLeavesCommittedStatusEventPendingForReplay() throws Exception {
         String customer = "Bearer " + tokens.create(UUID.randomUUID(), "CUSTOMER");
         String agent = "Bearer " + tokens.create(UUID.randomUUID(), "SUPPORT");
@@ -46,7 +46,7 @@ class TicketOutboxIT {
         mvc.perform(patch("/api/v1/tickets/" + id).header("Authorization", agent)
                 .contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"IN_PROGRESS\"}"))
                 .andExpect(status().isOk());
-        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM ticket_outbox WHERE published_at IS NULL", Integer.class));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM support.ticket_outbox WHERE published_at IS NULL", Integer.class));
         ArgumentCaptor<TicketEvent> attempted = ArgumentCaptor.forClass(TicketEvent.class);
         verify(publisher).publish(attempted.capture());
         reset(publisher);
@@ -54,7 +54,7 @@ class TicketOutboxIT {
         ArgumentCaptor<TicketEvent> replayed = ArgumentCaptor.forClass(TicketEvent.class);
         verify(publisher).publish(replayed.capture());
         assertEquals(attempted.getValue().eventId(), replayed.getValue().eventId());
-        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM ticket_outbox WHERE published_at IS NULL", Integer.class));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM support.ticket_outbox WHERE published_at IS NULL", Integer.class));
         dispatcher.replayPending();
         verify(publisher, times(1)).publish(any());
     }

@@ -30,6 +30,7 @@ class TicketControllerIT {
     @Autowired TicketRepository tickets;
     @Autowired JdbcTemplate jdbc;
     @MockBean OrderLookupClient orders;
+    @MockBean SupportAgentLookupClient agents;
     @MockBean TicketEventPublisher events;
     UUID alice = UUID.randomUUID();
     UUID bob = UUID.randomUUID();
@@ -37,7 +38,7 @@ class TicketControllerIT {
 
     @BeforeEach void clean() { clearData(); }
     @AfterEach void cleanAfter() { clearData(); }
-    private void clearData() { jdbc.update("DELETE FROM ticket_outbox"); jdbc.update("DELETE FROM ticket_comments"); tickets.deleteAll(); }
+    private void clearData() { jdbc.update("DELETE FROM support.ticket_outbox"); jdbc.update("DELETE FROM support.ticket_comments"); tickets.deleteAll(); }
     String auth(UUID id, String role) { return "Bearer " + tokens.create(id, role); }
     String create(UUID owner, String body) throws Exception {
         String response = mvc.perform(post("/api/v1/tickets").header("Authorization", auth(owner, "CUSTOMER"))
@@ -89,11 +90,32 @@ class TicketControllerIT {
         assertEquals(0, tickets.count());
     }
 
+    @Test void adminCannotAssignMissingOrWrongRoleUser() throws Exception {
+        String id = create(alice, "{\"subject\":\"Question\",\"description\":\"Please help\"}");
+        UUID missing = UUID.randomUUID();
+        UUID customer = UUID.randomUUID();
+        doThrow(new TicketException(org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,
+                "INVALID_ASSIGNEE", "Support agent not found"))
+                .when(agents).validate(eq(missing), anyString());
+        doThrow(new TicketException(org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,
+                "INVALID_ASSIGNEE", "Support agent not found"))
+                .when(agents).validate(eq(customer), anyString());
+        for (UUID candidate : new UUID[]{missing, customer}) {
+            mvc.perform(patch("/api/v1/tickets/" + id).header("Authorization", auth(agent, "ADMIN"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"assigneeId\":\"" + candidate + "\"}"))
+                    .andExpect(status().isUnprocessableEntity())
+                    .andExpect(jsonPath("$.code").value("INVALID_ASSIGNEE"));
+        }
+        assertNull(tickets.findById(UUID.fromString(id)).orElseThrow().getAssigneeId());
+    }
+
     @Test void supportAgentCanAssignTicketToSelf() throws Exception {
         String id = create(alice, "{\"subject\":\"Question\",\"description\":\"Please help\"}");
         mvc.perform(patch("/api/v1/tickets/" + id).header("Authorization", auth(agent, "SUPPORT"))
                 .contentType(MediaType.APPLICATION_JSON).content("{\"assignToMe\":true}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.assigneeId").value(agent.toString()));
+        verify(agents).validate(eq(agent), anyString());
     }
 
     @Test void supportAssignsAdvancesAndCommentsButCustomerCannotManage() throws Exception {

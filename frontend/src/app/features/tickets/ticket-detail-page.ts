@@ -16,7 +16,11 @@ import { Ticket, TicketService, TicketStatus } from './ticket.service';
       <p>Status: <strong>{{ ticket.status }}</strong> · Opened {{ ticket.createdAt | date:'medium' }}</p>
       @if (ticket.orderId) { <p>Order: <a [routerLink]="['/orders', ticket.orderId]">{{ ticket.orderId }}</a></p> }
       @if (isStaff) {
-        <button type="button" (click)="assignToMe()" [disabled]="saving">Assign to me</button>
+        @if (isSupport) { <button type="button" (click)="assignToMe()" [disabled]="saving">Assign to me</button> }
+        @if (isAdmin) {
+          <label>Support agent ID<input name="supportAgentId" [(ngModel)]="supportAgentId" /></label>
+          <button type="button" (click)="assignAgent()" [disabled]="saving || !supportAgentId.trim()">Assign agent</button>
+        }
         @if (nextStatus) { <button type="button" (click)="advance()" [disabled]="saving">Move to {{ nextStatus }}</button> }
       }
       <h3>Conversation</h3>
@@ -37,9 +41,12 @@ export class TicketDetailPage implements OnInit {
   private readonly tickets = inject(TicketService);
   private readonly route = inject(ActivatedRoute);
   private readonly auth = inject(AuthService);
-  readonly isStaff = this.auth.role() === 'SUPPORT' || this.auth.role() === 'ADMIN';
+  readonly isSupport = this.auth.role() === 'SUPPORT';
+  readonly isAdmin = this.auth.role() === 'ADMIN';
+  readonly isStaff = this.isSupport || this.isAdmin;
   ticket: Ticket | null = null;
   commentBody = '';
+  supportAgentId = '';
   loading = false;
   saving = false;
   error = '';
@@ -65,6 +72,14 @@ export class TicketDetailPage implements OnInit {
     if (!this.ticket || !this.isStaff || this.saving) return;
     this.saving = true; this.error = '';
     this.tickets.update(this.ticket.id, { assignToMe: true }).subscribe({
+      next: ticket => { this.ticket = ticket; this.saving = false; },
+      error: failure => { this.error = failure.error?.message || 'Unable to assign ticket.'; this.saving = false; }
+    });
+  }
+  assignAgent(): void {
+    if (!this.ticket || !this.isAdmin || !this.supportAgentId.trim() || this.saving) return;
+    this.saving = true; this.error = '';
+    this.tickets.update(this.ticket.id, { assigneeId: this.supportAgentId.trim() }).subscribe({
       next: ticket => { this.ticket = ticket; this.saving = false; },
       error: failure => { this.error = failure.error?.message || 'Unable to assign ticket.'; this.saving = false; }
     });

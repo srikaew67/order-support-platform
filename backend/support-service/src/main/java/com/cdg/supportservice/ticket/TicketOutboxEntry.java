@@ -8,7 +8,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "ticket_outbox")
+@Table(name = "ticket_outbox", schema = "support")
 public class TicketOutboxEntry {
     @Id @Column(name = "event_id") private UUID eventId;
     @Column(name = "event_type", nullable = false) private String eventType;
