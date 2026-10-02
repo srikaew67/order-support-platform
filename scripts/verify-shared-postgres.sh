@@ -57,3 +57,39 @@ if [[ "$result" != '4|0|1|1' ]]; then
   exit 1
 fi
 printf 'Shared PostgreSQL startup and schema verification passed: %s\n' "$result"
+
+# Simulate an older database with a ticket row that has not yet been moved.
+kill "$support_pid" "$order_pid"
+wait "$support_pid" 2>/dev/null || true
+wait "$order_pid" 2>/dev/null || true
+support_pid=''
+order_pid=''
+"${compose[@]}" exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 <<'SQL'
+CREATE TABLE public.support_tickets (id UUID PRIMARY KEY);
+INSERT INTO public.support_tickets (id) VALUES ('00000000-0000-0000-0000-000000000001');
+DELETE FROM public.flyway_schema_history WHERE version = '5';
+SQL
+
+# The support schema must remain usable while public legacy data awaits migration.
+SERVER_PORT=18082 "$java_bin" -jar "$root_dir/backend/support-service/target/support-service-0.0.1-SNAPSHOT.jar" > /tmp/cdg-task5-support-legacy-startup.log 2>&1 &
+support_pid=$!
+wait_health 18082
+kill "$support_pid"
+wait "$support_pid" 2>/dev/null || true
+support_pid=''
+
+set +e
+timeout 60s env SERVER_PORT=18081 "$java_bin" -jar "$root_dir/backend/order-service/target/order-service-0.0.1-SNAPSHOT.jar" > /tmp/cdg-task5-order-legacy-startup.log 2>&1
+restart_status=$?
+set -e
+if [[ "$restart_status" -eq 0 || "$restart_status" -eq 124 ]] ||
+        ! grep -Fq 'Migrate legacy ticket data from public.support_tickets' /tmp/cdg-task5-order-legacy-startup.log; then
+  echo "Order service did not safely refuse the nonempty legacy ticket table" >&2
+  exit 1
+fi
+remaining="$("${compose[@]}" exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -c 'SELECT count(*) FROM public.support_tickets')"
+if [[ "$remaining" != '1' ]]; then
+  echo "Legacy ticket row was not preserved: $remaining" >&2
+  exit 1
+fi
+printf 'Nonempty legacy ticket migration guard passed: %s row preserved\n' "$remaining"

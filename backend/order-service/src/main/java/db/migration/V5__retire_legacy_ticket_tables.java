@@ -17,9 +17,16 @@ public class V5__retire_legacy_ticket_tables extends BaseJavaMigration {
         Connection connection = context.getConnection();
         DatabaseMetaData metadata = connection.getMetaData();
         List<Table> tables = new ArrayList<>();
-        for (String name : LEGACY) {
+        for (String name : List.of("ticket_comments", "support_tickets")) {
             Table table = findPublicTable(metadata, name);
             if (table != null) tables.add(table);
+        }
+        if ("PostgreSQL".equalsIgnoreCase(metadata.getDatabaseProductName())) {
+            try (Statement statement = connection.createStatement()) {
+                for (Table table : tables) {
+                    statement.execute("LOCK TABLE public." + table.name() + " IN ACCESS EXCLUSIVE MODE");
+                }
+            }
         }
         for (Table table : tables) {
             try (ResultSet references = metadata.getExportedKeys(null, table.schema(), table.name())) {
@@ -29,6 +36,16 @@ public class V5__retire_legacy_ticket_tables extends BaseJavaMigration {
                         throw new SQLException("Cannot retire legacy ticket table " + table.name()
                                 + ": foreign key from " + referencing + " still depends on it");
                     }
+                }
+            }
+        }
+        for (Table table : tables) {
+            try (Statement statement = connection.createStatement();
+                    ResultSet rows = statement.executeQuery(
+                            "SELECT 1 FROM public." + table.name() + " FETCH FIRST 1 ROW ONLY")) {
+                if (rows.next()) {
+                    throw new SQLException("Migrate legacy ticket data from public." + table.name()
+                            + " into the support schema before retiring the legacy tables; no rows were deleted");
                 }
             }
         }
