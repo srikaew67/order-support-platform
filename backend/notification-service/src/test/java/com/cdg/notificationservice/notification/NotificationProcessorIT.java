@@ -72,4 +72,14 @@ class NotificationProcessorIT {
                         + "\",\"event_type\":\"OrderCreated\",\"version\":2}", "order.events")));
         assertEquals(0, notifications.count());
     }
+    @Test void rejectsTextAndFractionalEventVersions() {
+        String base = "{\"event_id\":\"" + UUID.randomUUID() + "\",\"event_type\":\"OrderCreated\","
+                + "\"version\":%s,\"occurred_at\":\"2026-10-01T00:00:00Z\","
+                + "\"order_id\":\"" + UUID.randomUUID() + "\",\"customer_id\":\"" + UUID.randomUUID() + "\","
+                + "\"status\":\"PENDING\",\"correlation_id\":\"request-4\"}";
+        assertThrows(InvalidNotificationEventException.class,
+                () -> parser.parse(message(base.formatted("\"1\""), "order.events")));
+        assertThrows(InvalidNotificationEventException.class,
+                () -> parser.parse(message(base.formatted("1.5"), "order.events")));
+    }
 }

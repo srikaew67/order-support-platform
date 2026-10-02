@@ -1,5 +1,6 @@
 package com.cdg.notificationservice.notification;
 
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -7,6 +8,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationProcessor {
     private final NotificationRepository notifications;
     public NotificationProcessor(NotificationRepository notifications) { this.notifications = notifications; }
+    @Transactional(readOnly = true) public boolean alreadyProcessed(UUID eventId) {
+        return notifications.existsByEventId(eventId);
+    }
     @Transactional public void persist(NotificationEvent event) {
         if (notifications.existsByEventId(event.eventId())) return;
         String text = switch (event.eventType()) {

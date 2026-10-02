@@ -14,7 +14,8 @@ public class NotificationEventParser {
     public NotificationEvent parse(Message message) {
         try {
             JsonNode root = json.readTree(message.getBody());
-            if (root == null || !root.isObject() || root.path("version").asInt(-1) != 1)
+            if (root == null || !root.isObject() || !root.path("version").isIntegralNumber()
+                    || !root.path("version").canConvertToInt() || root.path("version").intValue() != 1)
                 throw new InvalidNotificationEventException("Unsupported or missing event version");
             String type = required(root, "event_type", "eventType");
             String exchange = message.getMessageProperties().getReceivedExchange();
