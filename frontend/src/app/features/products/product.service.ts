@@ -9,9 +9,10 @@ export interface Product {
   description: string;
   price: number;
   stockQuantity: number;
+  version: number;
 }
 
-export type ProductInput = Omit<Product, 'id'>;
+export type ProductInput = Omit<Product, 'id' | 'version'> & { version?: number };
 
 export interface ProductPage {
   content: Product[];

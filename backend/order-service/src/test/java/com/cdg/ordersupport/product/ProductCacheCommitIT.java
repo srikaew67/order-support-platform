@@ -69,7 +69,7 @@ class ProductCacheCommitIT {
             var write = executor.submit(() -> mockMvc.perform(put("/api/v1/products/" + product.getId())
                     .header("Authorization", authorization)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"sku\":\"RACE\",\"name\":\"After\",\"price\":10,\"stockQuantity\":2}"))
+                    .content("{\"sku\":\"RACE\",\"name\":\"After\",\"price\":10,\"stockQuantity\":2,\"version\":0}"))
                     .andExpect(status().isOk()).andReturn());
             try {
                 assertTrue(invalidated.await(10, TimeUnit.SECONDS), "write never reached cache invalidation");
@@ -88,7 +88,7 @@ class ProductCacheCommitIT {
         Product product = products.save(new Product("ROLLBACK", "Before", "", BigDecimal.TEN, 2));
         new TransactionTemplate(transactions).executeWithoutResult(status -> {
             productService.update(product.getId(), new CreateProductRequest(
-                    "ROLLBACK", "After", "", BigDecimal.TEN, 2));
+                    "ROLLBACK", "After", "", BigDecimal.TEN, 2, product.getVersion()));
             status.setRollbackOnly();
         });
         verify(cache, never()).invalidateAll();

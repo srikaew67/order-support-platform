@@ -23,14 +23,16 @@ public class OrderService {
     private final OrderRepository orders;
     private final ProductRepository products;
     private final ProductCache cache;
-    private final OrderEventPublisher events;
+    private final OrderOutboxRepository outbox;
+    private final OrderOutboxDispatcher dispatcher;
 
     public OrderService(OrderRepository orders, ProductRepository products, ProductCache cache,
-            OrderEventPublisher events) {
+            OrderOutboxRepository outbox, OrderOutboxDispatcher dispatcher) {
         this.orders = orders;
         this.products = products;
         this.cache = cache;
-        this.events = events;
+        this.outbox = outbox;
+        this.dispatcher = dispatcher;
     }
 
     @Transactional
@@ -52,7 +54,7 @@ public class OrderService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Order total is too large");
         }
         CustomerOrder saved = orders.save(order);
-        afterCommit(OrderEvent.created(saved, correlationId), true);
+        recordEvent(OrderEvent.created(saved, correlationId), true);
         return OrderResponse.from(saved);
     }
 
@@ -90,7 +92,7 @@ public class OrderService {
             product.restore(item.getQuantity());
         }
         order.setStatus(OrderStatus.CANCELLED);
-        afterCommit(OrderEvent.statusChanged(order, correlationId), true);
+        recordEvent(OrderEvent.statusChanged(order, correlationId), true);
         return OrderResponse.from(order);
     }
 
@@ -106,7 +108,7 @@ public class OrderService {
         if (!allowed) throw new ApiException(HttpStatus.CONFLICT,
                 "INVALID_TRANSITION", "Invalid order status transition");
         order.setStatus(next);
-        afterCommit(OrderEvent.statusChanged(order, correlationId), false);
+        recordEvent(OrderEvent.statusChanged(order, correlationId), false);
         return OrderResponse.from(order);
     }
 
@@ -139,13 +141,14 @@ public class OrderService {
         }
     }
 
-    private void afterCommit(OrderEvent event, boolean stockChanged) {
+    private void recordEvent(OrderEvent event, boolean stockChanged) {
+        outbox.save(new OrderOutboxEntry(event));
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override public void afterCommit() {
                 if (stockChanged) {
                     try { cache.invalidateAll(); } catch (RuntimeException ignored) { }
                 }
-                events.publish(event);
+                dispatcher.tryPublish(event.eventId());
             }
         });
     }

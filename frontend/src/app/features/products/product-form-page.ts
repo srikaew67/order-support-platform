@@ -44,7 +44,8 @@ export class ProductFormPage implements OnInit {
     this.loading = true;
     this.products.get(this.id).subscribe({
       next: product => { this.product = { sku: product.sku, name: product.name,
-        description: product.description, price: product.price, stockQuantity: product.stockQuantity }; this.loading = false; },
+        description: product.description, price: product.price, stockQuantity: product.stockQuantity,
+        version: product.version }; this.loading = false; },
       error: () => { this.error = 'Unable to load this product.'; this.loading = false; }
     });
   }
@@ -56,7 +57,10 @@ export class ProductFormPage implements OnInit {
     const request = this.id ? this.products.update(this.id, this.product) : this.products.create(this.product);
     request.subscribe({
       next: product => void this.router.navigate(['/products', product.id]),
-      error: () => { this.error = 'Unable to save this product. Check its fields and SKU.'; this.saving = false; }
+      error: failure => {
+        this.error = failure.error?.message || 'Unable to save this product. Check its fields and SKU.';
+        this.saving = false;
+      }
     });
   }
 }

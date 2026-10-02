@@ -21,19 +21,19 @@ public class ProductCache {
     }
 
     public Optional<ProductPage> readPage(int page, int size) {
-        return read("products:page:" + page + ":" + size, ProductPage.class);
+        return read("products:v2:page:" + page + ":" + size, ProductPage.class);
     }
 
     public void writePage(int page, int size, ProductPage value) {
-        write("products:page:" + page + ":" + size, value);
+        write("products:v2:page:" + page + ":" + size, value);
     }
 
     public Optional<ProductResponse> readProduct(UUID id) {
-        return read("products:item:" + id, ProductResponse.class);
+        return read("products:v2:item:" + id, ProductResponse.class);
     }
 
     public void writeProduct(UUID id, ProductResponse value) {
-        write("products:item:" + id, value);
+        write("products:v2:item:" + id, value);
     }
 
     public void invalidateAll() {

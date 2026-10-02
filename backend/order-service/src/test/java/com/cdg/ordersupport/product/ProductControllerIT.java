@@ -68,8 +68,9 @@ class ProductControllerIT {
         String id = json.readTree(created).get("id").asText();
         mockMvc.perform(put("/api/v1/products/" + id).header("Authorization", admin)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"sku\":\"SKU-1\",\"name\":\"Updated\",\"description\":\"New\",\"price\":12,\"stockQuantity\":3}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Updated"));
+                .content("{\"sku\":\"SKU-1\",\"name\":\"Updated\",\"description\":\"New\",\"price\":12,\"stockQuantity\":3,\"version\":0}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Updated"))
+                .andExpect(jsonPath("$.version").value(1));
         mockMvc.perform(get("/api/v1/products/" + id))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Updated"));
         mockMvc.perform(delete("/api/v1/products/" + id).header("Authorization", admin))

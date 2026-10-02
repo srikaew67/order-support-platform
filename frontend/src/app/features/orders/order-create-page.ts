@@ -28,6 +28,11 @@ import { OrderItemInput, OrderService } from './order.service';
             @if (items.length > 1) { <button type="button" (click)="removeItem($index)">Remove</button> }
           </div>
         }
+        @if (hasMoreProducts) {
+          <button type="button" (click)="loadMoreProducts()" [disabled]="loadingMore">
+            {{ loadingMore ? 'Loading products…' : 'Load more products' }}
+          </button>
+        }
         <button type="button" (click)="addItem()">Add another product</button>
         <button type="submit" [disabled]="orderForm.invalid || saving || loading || products.length === 0">{{ saving ? 'Placing order…' : 'Place order' }}</button>
       </form>
@@ -48,6 +53,9 @@ export class OrderCreatePage implements OnInit {
   products: Product[] = [];
   items: OrderItemInput[] = [{ productId: this.route.snapshot.queryParamMap.get('productId') || '', quantity: 1 }];
   loading = false;
+  loadingMore = false;
+  catalogPage = 0;
+  hasMoreProducts = false;
   saving = false;
   error = '';
 
@@ -56,6 +64,8 @@ export class OrderCreatePage implements OnInit {
     this.productService.list(0, 100).subscribe({
       next: page => {
         this.products = page.content;
+        this.catalogPage = page.page;
+        this.hasMoreProducts = page.page + 1 < page.totalPages;
         const selected = this.items[0].productId;
         if (selected && !this.products.some(product => product.id === selected)) {
           this.productService.get(selected).subscribe({
@@ -71,6 +81,20 @@ export class OrderCreatePage implements OnInit {
         }
       },
       error: () => { this.error = 'Unable to load products.'; this.loading = false; }
+    });
+  }
+  loadMoreProducts(): void {
+    if (!this.hasMoreProducts || this.loadingMore) return;
+    this.loadingMore = true;
+    this.productService.list(this.catalogPage + 1, 100).subscribe({
+      next: page => {
+        const known = new Set(this.products.map(product => product.id));
+        this.products.push(...page.content.filter(product => !known.has(product.id)));
+        this.catalogPage = page.page;
+        this.hasMoreProducts = page.page + 1 < page.totalPages;
+        this.loadingMore = false;
+      },
+      error: () => { this.error = 'Unable to load more products.'; this.loadingMore = false; }
     });
   }
   addItem(): void { this.items.push({ productId: '', quantity: 1 }); }

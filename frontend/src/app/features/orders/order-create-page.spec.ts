@@ -46,4 +46,30 @@ describe('OrderCreatePage', () => {
     expect(fixture.nativeElement.textContent).toContain('Late product');
     http.verify();
   });
+
+  it('loads another catalog page for a second order line', () => {
+    TestBed.configureTestingModule({
+      imports: [OrderCreatePage],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]),
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => null } } } }]
+    });
+    const fixture = TestBed.createComponent(OrderCreatePage);
+    fixture.detectChanges();
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne(`${environment.api.order}/api/v1/products?page=0&size=100`).flush({
+      content: [{ id: 'product-1', sku: 'ONE', name: 'First', description: '', price: 10, stockQuantity: 2 }],
+      page: 0, size: 100, totalElements: 101, totalPages: 2
+    });
+    fixture.componentInstance.addItem();
+    fixture.componentInstance.loadMoreProducts();
+    http.expectOne(`${environment.api.order}/api/v1/products?page=1&size=100`).flush({
+      content: [{ id: 'product-101', sku: 'LATE', name: 'Late product', description: '', price: 30, stockQuantity: 2 }],
+      page: 1, size: 100, totalElements: 101, totalPages: 2
+    });
+    fixture.detectChanges();
+    const selects = fixture.nativeElement.querySelectorAll('select') as NodeListOf<HTMLSelectElement>;
+    expect(selects.length).toBe(2);
+    expect(selects[1].textContent).toContain('Late product');
+    http.verify();
+  });
 });

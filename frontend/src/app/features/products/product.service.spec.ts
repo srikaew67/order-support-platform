@@ -31,10 +31,11 @@ describe('ProductService', () => {
     expect(create.request.body).toEqual(input);
     create.flush({ id: 'product-1', ...input });
 
-    service.update('product-1', input).subscribe();
+    service.update('product-1', { ...input, version: 7 }).subscribe();
     const update = http.expectOne(`${environment.api.order}/api/v1/products/product-1`);
     expect(update.request.method).toBe('PUT');
-    update.flush({ id: 'product-1', ...input });
+    expect(update.request.body.version).toBe(7);
+    update.flush({ id: 'product-1', ...input, version: 8 });
 
     service.delete('product-1').subscribe();
     const remove = http.expectOne(`${environment.api.order}/api/v1/products/product-1`);

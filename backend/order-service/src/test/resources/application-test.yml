@@ -12,3 +12,6 @@ spring:
 security:
   jwt:
     secret: test-secret-must-be-at-least-thirty-two-characters-long
+orders:
+  outbox:
+    retry-enabled: false

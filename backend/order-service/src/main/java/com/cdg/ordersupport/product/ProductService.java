@@ -60,10 +60,15 @@ public class ProductService {
 
     @Transactional
     public ProductResponse update(UUID id, CreateProductRequest request) {
-        Product product = activeProduct(id);
+        Product product = products.findActiveForUpdate(id).orElseThrow(() -> new ApiException(
+                HttpStatus.NOT_FOUND, "NOT_FOUND", "Product not found"));
+        if (request.version() == null || request.version() != product.getVersion()) {
+            throw new ApiException(HttpStatus.CONFLICT, "STALE_PRODUCT",
+                    "Product changed since it was loaded; reload before saving");
+        }
         if (products.existsBySkuAndIdNot(request.sku(), id)) throw conflict();
         product.update(request.sku(), request.name(), request.description(), request.price(), request.stockQuantity());
-        ProductResponse result = ProductResponse.from(products.save(product));
+        ProductResponse result = ProductResponse.from(products.saveAndFlush(product));
         invalidateAfterCommit();
         return result;
     }

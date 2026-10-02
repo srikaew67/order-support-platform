@@ -13,4 +13,5 @@ public record CreateProductRequest(
         @NotBlank @Size(max = 255) String name,
         String description,
         @NotNull @Positive @Digits(integer = 10, fraction = 2) BigDecimal price,
-        @PositiveOrZero int stockQuantity) {}
+        @PositiveOrZero int stockQuantity,
+        @PositiveOrZero Long version) {}

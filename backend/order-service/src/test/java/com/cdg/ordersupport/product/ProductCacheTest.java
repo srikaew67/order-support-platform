@@ -36,7 +36,7 @@ class ProductCacheTest {
         ObjectMapper json = Jackson2ObjectMapperBuilder.json().build();
         ProductCache cache = new ProductCache(redis, json);
         UUID id = UUID.randomUUID();
-        ProductResponse product = new ProductResponse(id, "SKU", "Desk", "Oak", BigDecimal.TEN, 2);
+        ProductResponse product = new ProductResponse(id, "SKU", "Desk", "Oak", BigDecimal.TEN, 2, 0);
         ProductPage page = new ProductPage(List.of(product), 0, 12, 1, 1);
 
         cache.writePage(0, 12, page);

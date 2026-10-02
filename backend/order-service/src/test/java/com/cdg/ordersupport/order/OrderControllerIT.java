@@ -20,6 +20,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.core.MessagePostProcessor;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -43,12 +44,23 @@ class OrderControllerIT {
     @MockBean RabbitTemplate rabbit;
 
     @BeforeEach void clean() {
+        clearData();
+        doAnswer(call -> {
+            CorrelationData confirmation = call.getArgument(4);
+            confirmation.getFuture().complete(new CorrelationData.Confirm(true, null));
+            return null;
+        }).when(rabbit).convertAndSend(anyString(), anyString(), any(OrderEvent.class),
+                any(MessagePostProcessor.class), any(CorrelationData.class));
+    }
+
+    private void clearData() {
+        jdbc.update("DELETE FROM order_outbox");
         jdbc.update("DELETE FROM order_items");
         jdbc.update("DELETE FROM orders");
         products.deleteAll();
     }
 
-    @AfterEach void cleanAfter() { clean(); }
+    @AfterEach void cleanAfter() { clearData(); }
 
     private String token(Role role) {
         User user = users.save(new User(UUID.randomUUID() + "@example.com", "hash", "Test", role));
@@ -76,9 +88,11 @@ class OrderControllerIT {
                 .andExpect(jsonPath("$.items[0].subtotal").value(25.00))
                 .andExpect(jsonPath("$.totalAmount").value(25.00));
         assertEquals(3, products.findById(product.getId()).orElseThrow().getStockQuantity());
+        assertEquals(1, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM order_outbox WHERE published_at IS NOT NULL", Integer.class));
         ArgumentCaptor<OrderEvent> event = ArgumentCaptor.forClass(OrderEvent.class);
         verify(rabbit).convertAndSend(eq("order.events"), eq("order.created"), event.capture(),
-                any(MessagePostProcessor.class));
+                any(MessagePostProcessor.class), any(CorrelationData.class));
         assertNotNull(event.getValue().eventId());
         assertEquals("OrderCreated", event.getValue().eventType());
         assertEquals(1, event.getValue().version());
@@ -98,8 +112,9 @@ class OrderControllerIT {
         assertEquals(4, products.findById(first.getId()).orElseThrow().getStockQuantity());
         assertEquals(1, products.findById(second.getId()).orElseThrow().getStockQuantity());
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM orders", Integer.class));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM order_outbox", Integer.class));
         verify(rabbit, never()).convertAndSend(anyString(), anyString(), any(OrderEvent.class),
-                any(MessagePostProcessor.class));
+                any(MessagePostProcessor.class), any(CorrelationData.class));
     }
 
     @Test void customerCannotReadOrCancelAnotherCustomersOrder() throws Exception {
@@ -124,7 +139,7 @@ class OrderControllerIT {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELLED"));
         assertEquals(3, products.findById(product.getId()).orElseThrow().getStockQuantity());
         verify(rabbit, times(1)).convertAndSend(eq("order.events"), eq("order.status.changed"),
-                any(OrderEvent.class), any(MessagePostProcessor.class));
+                any(OrderEvent.class), any(MessagePostProcessor.class), any(CorrelationData.class));
     }
 
     @Test void adminCanAdvanceStatusButCustomerCannot() throws Exception {
@@ -144,7 +159,7 @@ class OrderControllerIT {
         mockMvc.perform(post("/api/v1/orders/" + id + "/cancel").header("Authorization", customer))
                 .andExpect(status().isConflict());
         verify(rabbit, times(2)).convertAndSend(eq("order.events"), eq("order.status.changed"),
-                any(OrderEvent.class), any(MessagePostProcessor.class));
+                any(OrderEvent.class), any(MessagePostProcessor.class), any(CorrelationData.class));
     }
 
     @Test void invalidOrderInputAndStatusTransitionAreRejected() throws Exception {
@@ -175,5 +190,18 @@ class OrderControllerIT {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
         mockMvc.perform(get("/api/v1/orders?page=0&size=1").header("Authorization", other))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test void staleAdminEditCannotRestoreStockReservedByAnOrder() throws Exception {
+        Product product = products.save(new Product("STALE", "Before", "", BigDecimal.TEN, 5));
+        String id = create(token(Role.CUSTOMER), "[{\"productId\":\"" + product.getId() + "\",\"quantity\":2}]");
+        assertNotNull(id);
+        mockMvc.perform(put("/api/v1/products/" + product.getId())
+                .header("Authorization", token(Role.ADMIN))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"sku\":\"STALE\",\"name\":\"After\",\"price\":20,\"stockQuantity\":5,\"version\":0}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("STALE_PRODUCT"));
+        assertEquals(3, products.findById(product.getId()).orElseThrow().getStockQuantity());
     }
 }
