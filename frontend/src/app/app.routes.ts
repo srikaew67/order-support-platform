@@ -7,6 +7,9 @@ import { ProductFormPage } from './features/products/product-form-page';
 import { OrderListPage } from './features/orders/order-list-page';
 import { OrderCreatePage } from './features/orders/order-create-page';
 import { OrderDetailPage } from './features/orders/order-detail-page';
+import { TicketListPage } from './features/tickets/ticket-list-page';
+import { TicketCreatePage } from './features/tickets/ticket-create-page';
+import { TicketDetailPage } from './features/tickets/ticket-detail-page';
 
 export const routes: Routes = [
   { path: 'login', component: AuthPage, data: { mode: 'login' } },
@@ -19,6 +22,9 @@ export const routes: Routes = [
   { path: 'orders', component: OrderListPage, canActivate: [authGuard] },
   { path: 'orders/new', component: OrderCreatePage, canActivate: [customerGuard] },
   { path: 'orders/:id', component: OrderDetailPage, canActivate: [authGuard] },
+  { path: 'tickets', component: TicketListPage, canActivate: [authGuard] },
+  { path: 'tickets/new', component: TicketCreatePage, canActivate: [customerGuard] },
+  { path: 'tickets/:id', component: TicketDetailPage, canActivate: [authGuard] },
   { path: '', pathMatch: 'full', redirectTo: 'login' },
   { path: '**', redirectTo: 'login' }
 ];

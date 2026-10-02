@@ -22,6 +22,7 @@ import { Order, OrderService, OrderStatus } from './order.service';
           }</tbody>
         </table>
         <p>Total: <strong>{{ order.totalAmount | currency }}</strong></p>
+        @if (auth.role() === 'CUSTOMER') { <a routerLink="/tickets/new" [queryParams]="{ orderId: order.id }">Open support ticket</a> }
         @if (canCancel) { <button type="button" (click)="cancel()" [disabled]="saving">{{ saving ? 'Cancelling…' : 'Cancel order' }}</button> }
         @if (nextStatus) { <button type="button" (click)="advance()" [disabled]="saving">Move to {{ nextStatus }}</button> }
       }
@@ -36,7 +37,7 @@ import { Order, OrderService, OrderStatus } from './order.service';
 export class OrderDetailPage implements OnInit {
   private readonly orders = inject(OrderService);
   private readonly route = inject(ActivatedRoute);
-  private readonly auth = inject(AuthService);
+  readonly auth = inject(AuthService);
   order: Order | null = null;
   loading = false;
   saving = false;
