@@ -1,6 +1,30 @@
 spring:
   application:
     name: notification-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/order_support}
+    username: ${SPRING_DATASOURCE_USERNAME:order_support}
+    password: ${SPRING_DATASOURCE_PASSWORD:order_support}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: notification
+    open-in-view: false
+  flyway:
+    schemas: notification
+    default-schema: notification
+    create-schemas: true
+    table: notification_flyway_schema_history
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:order_support}
+    password: ${RABBITMQ_PASSWORD:order_support}
+security:
+  jwt:
+    secret: ${JWT_SECRET:local-development-secret-change-before-deploying}
 server:
   port: ${SERVER_PORT:8083}
 management:

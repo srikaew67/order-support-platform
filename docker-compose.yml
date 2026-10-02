@@ -31,8 +31,8 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-order_support}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-order_support}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "${RABBITMQ_HOST_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -98,8 +98,20 @@ services:
       context: ./backend/notification-service
     environment:
       SERVER_PORT: 8083
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-order_support}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-order_support}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-order_support}
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-before-deploying}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-order_support}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-order_support}
     ports:
       - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8083/actuator/health"]
       interval: 10s
