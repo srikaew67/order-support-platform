@@ -51,3 +51,7 @@ Run `scripts/verify-e2e.sh` with Docker Compose and Python 3 available. It gener
 The smoke test seeds a product through PostgreSQL because public registration only grants the CUSTOMER role and product creation requires ADMIN. The normal stack does not seed users or catalog data.
 
 If startup fails, inspect `docker compose ps` and `docker compose logs <service>`. The API containers use their `/actuator/health` endpoints for health checks; Compose waits for PostgreSQL, Redis, and RabbitMQ before starting dependent services. If a host port is occupied, change the corresponding `*_HOST_PORT` value in `.env`.
+
+## CI/CD
+
+The Jenkins Multibranch Pipeline is in `infra/jenkins/Jenkinsfile`. Agent requirements, credential IDs, parameters, image tags, and the optional Kubernetes deployment contract are documented in `infra/jenkins/README.md`.
