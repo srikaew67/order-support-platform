@@ -55,3 +55,5 @@ If startup fails, inspect `docker compose ps` and `docker compose logs <service>
 ## CI/CD
 
 The Jenkins Multibranch Pipeline is in `infra/jenkins/Jenkinsfile`. Agent requirements, credential IDs, parameters, image tags, and the optional Kubernetes deployment contract are documented in `infra/jenkins/README.md`.
+
+The Kubernetes Kustomize manifests, secret setup, local-cluster steps, and rollout verification are documented in `infra/kubernetes/README.md`.

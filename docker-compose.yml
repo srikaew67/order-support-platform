@@ -131,7 +131,7 @@ services:
     build:
       context: ./frontend
     ports:
-      - "${FRONTEND_HOST_PORT:-8080}:80"
+      - "${FRONTEND_HOST_PORT:-8080}:8080"
     depends_on:
       order-service:
         condition: service_healthy

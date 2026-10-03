@@ -14,14 +14,13 @@ pipeline {
             description: 'Push tested images from the main branch to the registry')
         booleanParam(name: 'DEPLOY_TO_K8S', defaultValue: false,
             description: 'Deploy the published images and check the public endpoint')
-        string(name: 'KUBE_NAMESPACE', defaultValue: 'order-support',
-            description: 'Kubernetes namespace for deployment')
         string(name: 'SMOKE_BASE_URL', defaultValue: '',
             description: 'Public frontend URL to check after deployment')
     }
 
     environment {
         CI = 'true'
+        KUBE_NAMESPACE = 'order-support'
     }
 
     stages {
@@ -43,10 +42,6 @@ pipeline {
         stage('Validate release settings') {
             steps {
                 script {
-                    if (!(params.KUBE_NAMESPACE ==~ /[a-z0-9](?:[-a-z0-9]*[a-z0-9])?/) ||
-                            params.KUBE_NAMESPACE.length() > 63) {
-                        error('KUBE_NAMESPACE must be a DNS label')
-                    }
                     if (params.DEPLOY_TO_K8S && !params.PUBLISH_IMAGES) {
                         error('DEPLOY_TO_K8S requires PUBLISH_IMAGES')
                     }
@@ -63,7 +58,6 @@ pipeline {
                             error('Kubernetes manifests from Task 9 are required for deployment')
                         }
                     }
-                    env.KUBE_NAMESPACE = params.KUBE_NAMESPACE
                 }
             }
         }

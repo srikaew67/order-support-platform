@@ -1,5 +1,6 @@
 .tools/
 .env
+infra/kubernetes/secret.local.yaml
 **/target/
 frontend/node_modules/
 frontend/dist/

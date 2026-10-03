@@ -15,7 +15,6 @@ Use `infra/jenkins/Jenkinsfile` as the script path for a Jenkins Multibranch Pip
 | --- | --- | --- |
 | `PUBLISH_IMAGES` | `false` | Push all four images after every check passes; only permitted on `main`. |
 | `DEPLOY_TO_K8S` | `false` | Apply Kustomize manifests, update images, wait for rollouts, and run deployed smoke. Requires publishing. |
-| `KUBE_NAMESPACE` | `order-support` | Target Kubernetes namespace. |
 | `SMOKE_BASE_URL` | empty | Public frontend base URL, required for deployment verification. |
 
 The pipeline builds local images as `order-support/<service>:sha-<full-40-character-commit-SHA>`. Services are `order-service`, `support-service`, `notification-service`, and `frontend`. The Compose smoke test starts these exact local image IDs with `--no-build` and checks each running container's image ID. After that passes, the publish helper retags the same image IDs under `<release-registry credential>/<service>:sha-<full-SHA>` and pushes them.
@@ -24,6 +23,6 @@ Before any push, the helper checks all four remote tags. It continues only when 
 
 ## Deployment contract
 
-Deployment requires `infra/kubernetes/kustomization.yaml` from Task 9. Its Deployments and containers must use the four service names above. The target namespace, cluster dependencies, configuration, and secrets must already be prepared for the application. Jenkins applies the manifests, sets the four commit-tagged images, waits up to five minutes per rollout, then runs `scripts/smoke-deployed.py` through `SMOKE_BASE_URL`. This deployed check is read-only: it verifies Angular route fallback, three API health endpoints, and the public catalog. The pre-publish Compose smoke performs the full registration, order, ticket, and notification flow in an isolated database.
+Deployment uses the fixed `order-support` namespace from `infra/kubernetes/kustomization.yaml`. Its Deployments and containers use the four service names above. The namespace, cluster dependencies, configuration, and secrets must already be prepared for the application; see `infra/kubernetes/README.md`. Jenkins applies the manifests, sets the four commit-tagged images, waits up to five minutes per rollout, then runs `scripts/smoke-deployed.py` through `SMOKE_BASE_URL`. This deployed check is read-only: it verifies Angular route fallback, three API health endpoints, and the public catalog. The pre-publish Compose smoke performs the full registration, order, ticket, and notification flow in an isolated database.
 
 Backend JUnit XML files are published to Jenkins. Test, build, secret-scan, and smoke logs and Gitleaks SARIF reports are archived from `reports/`. A failed scan, test, build, or Compose smoke stops the pipeline before registry login, push, or deployment. Run `infra/jenkins/test-publish-images.sh` locally to verify that the publish helper blocks existing tags and registry errors before a push. There is no local Jenkins server in this repository, so the pipeline must also be checked with the Jenkins Declarative Pipeline linter in the target installation before enabling publish/deploy.
