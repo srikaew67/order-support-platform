@@ -12,12 +12,21 @@ Portfolio project for an order and support platform built with Java 21, Spring B
 ## Local prerequisites
 
 - Docker Compose v2
+- OpenSSL for generating a private local JWT key; Python 3 for the smoke test
 - Java 21 and Maven 3.9+ (for running APIs outside containers)
 - Node.js 22+ and npm (for the Angular dashboard)
 
 ## Run the local stack
 
-Copy `.env.example` to `.env` if you want to customize local credentials or host ports, then build and start the complete stack:
+Create a private `.env` file before starting the stack. The JWT secret is required and must be shared by all three services:
+
+```bash
+umask 077
+cp .env.example .env
+printf 'JWT_SECRET=%s\n' "$(openssl rand -hex 32)" >> .env
+```
+
+Customize local database credentials or host ports in `.env` if needed, then build and start the complete stack:
 
 ```bash
 docker compose up -d --build --wait
@@ -37,7 +46,7 @@ To start only data dependencies, use `docker compose up -d postgres redis rabbit
 
 ## End-to-end verification
 
-Run `scripts/verify-e2e.sh` with Docker Compose and Python 3 available. It builds the four images, starts a separate temporary Compose project with its own database and host ports, seeds one disposable product, then checks the Angular route, registration, login, product listing, order creation, ticket creation, and the resulting customer notification through the frontend proxy. It removes its containers and database volume afterward. Set `KEEP_SMOKE_STACK=1` to retain a run for inspection.
+Run `scripts/verify-e2e.sh` with Docker Compose and Python 3 available. It generates a fresh private JWT secret for the run, builds the four images, starts a separate temporary Compose project with its own database and host ports, seeds one disposable product, then checks the Angular route, registration, login, product listing, order creation, ticket creation, and the resulting customer notification through the frontend proxy. It removes its containers and database volume afterward. Set `KEEP_SMOKE_STACK=1` to retain a run for inspection. To verify other database settings without changing the working tree, set `SMOKE_ENV_FILE` to an absolute path to a custom Compose env file.
 
 The smoke test seeds a product through PostgreSQL because public registration only grants the CUSTOMER role and product creation requires ADMIN. The normal stack does not seed users or catalog data.
 

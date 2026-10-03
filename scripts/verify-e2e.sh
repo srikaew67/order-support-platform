@@ -29,8 +29,15 @@ PY
 export FRONTEND_HOST_PORT ORDER_HOST_PORT SUPPORT_HOST_PORT NOTIFICATION_HOST_PORT
 export POSTGRES_HOST_PORT REDIS_HOST_PORT RABBITMQ_HOST_PORT RABBITMQ_MANAGEMENT_PORT
 export IMAGE_TAG="smoke-$$"
+export JWT_SECRET="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
 
-compose() { docker compose --project-name "$project" "$@"; }
+compose() {
+  if [[ -n "${SMOKE_ENV_FILE:-}" ]]; then
+    docker compose --env-file "$SMOKE_ENV_FILE" --project-name "$project" "$@"
+  else
+    docker compose --project-name "$project" "$@"
+  fi
+}
 cleanup() {
   result=$?
   if (( result != 0 )); then
@@ -54,9 +61,10 @@ compose up -d --build --wait --wait-timeout 300
 
 # Registration always creates a CUSTOMER. Seed one catalog row only in this disposable database.
 product_id="$(python3 -c 'import uuid; print(uuid.uuid4())')"
-compose exec -T postgres psql -v ON_ERROR_STOP=1 \
-  -U "${POSTGRES_USER:-order_support}" -d "${POSTGRES_DB:-order_support}" \
-  -c "INSERT INTO products (id, sku, name, description, price, stock_quantity, active, created_at, updated_at, version) VALUES ('$product_id', 'SMOKE-$$', 'Smoke product', 'Disposable verification item', 12.50, 5, TRUE, now(), now(), 0)" >/dev/null
+compose exec -T postgres sh -c 'exec psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null <<SQL
+INSERT INTO products (id, sku, name, description, price, stock_quantity, active, created_at, updated_at, version)
+VALUES ('$product_id', 'SMOKE-$$', 'Smoke product', 'Disposable verification item', 12.50, 5, TRUE, now(), now(), 0);
+SQL
 
 python3 scripts/smoke-e2e.py --base-url "http://127.0.0.1:$FRONTEND_HOST_PORT" --product-id "$product_id"
 echo "End-to-end Compose smoke test passed"

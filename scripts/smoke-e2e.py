@@ -20,7 +20,7 @@ def request(base, method, path, body=None, token=None, correlation=None, expecte
     data = json.dumps(body).encode() if body is not None else None
     call = urllib.request.Request(base + path, data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(call, timeout=10) as response:
+        with urllib.request.urlopen(call, timeout=30) as response:
             raw = response.read()
             status = response.status
     except urllib.error.HTTPError as error:
