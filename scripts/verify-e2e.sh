@@ -28,7 +28,22 @@ PY
 )
 export FRONTEND_HOST_PORT ORDER_HOST_PORT SUPPORT_HOST_PORT NOTIFICATION_HOST_PORT
 export POSTGRES_HOST_PORT REDIS_HOST_PORT RABBITMQ_HOST_PORT RABBITMQ_MANAGEMENT_PORT
-export IMAGE_TAG="smoke-$$"
+if [[ "${SMOKE_USE_EXISTING_IMAGES:-0}" == 1 ]]; then
+  [[ "${IMAGE_TAG:-}" =~ ^sha-[0-9a-f]{40}$ ]] || {
+    echo "SMOKE_USE_EXISTING_IMAGES requires IMAGE_TAG=sha-<40 hex characters>" >&2
+    exit 1
+  }
+  for service in order-service support-service notification-service frontend; do
+    docker image inspect "order-support/$service:$IMAGE_TAG" >/dev/null || {
+      echo "Missing prebuilt smoke image: order-support/$service:$IMAGE_TAG" >&2
+      exit 1
+    }
+  done
+  up_options=(--no-build)
+else
+  export IMAGE_TAG="smoke-$$"
+  up_options=(--build)
+fi
 export JWT_SECRET="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
 
 compose() {
@@ -46,18 +61,33 @@ cleanup() {
   fi
   if [[ "${KEEP_SMOKE_STACK:-0}" != 1 ]]; then
     compose down -v --remove-orphans >/dev/null 2>&1 || true
-    docker image rm \
-      "order-support/frontend:$IMAGE_TAG" \
-      "order-support/order-service:$IMAGE_TAG" \
-      "order-support/support-service:$IMAGE_TAG" \
-      "order-support/notification-service:$IMAGE_TAG" >/dev/null 2>&1 || true
+    if [[ "${SMOKE_USE_EXISTING_IMAGES:-0}" != 1 ]]; then
+      docker image rm \
+        "order-support/frontend:$IMAGE_TAG" \
+        "order-support/order-service:$IMAGE_TAG" \
+        "order-support/support-service:$IMAGE_TAG" \
+        "order-support/notification-service:$IMAGE_TAG" >/dev/null 2>&1 || true
+    fi
   else
     echo "Kept Compose project $project for inspection" >&2
   fi
 }
 trap cleanup EXIT
 
-compose up -d --build --wait --wait-timeout 300
+compose up -d "${up_options[@]}" --wait --wait-timeout 300
+
+if [[ "${SMOKE_USE_EXISTING_IMAGES:-0}" == 1 ]]; then
+  for service in order-service support-service notification-service frontend; do
+    expected="$(docker image inspect --format '{{.Id}}' "order-support/$service:$IMAGE_TAG")"
+    container="$(compose ps -q "$service")"
+    actual="$(docker inspect --format '{{.Image}}' "$container")"
+    [[ "$actual" == "$expected" ]] || {
+      echo "Smoke container $service is not running the prebuilt $IMAGE_TAG image" >&2
+      exit 1
+    }
+    echo "Verified smoke image: $service $IMAGE_TAG"
+  done
+fi
 
 # Registration always creates a CUSTOMER. Seed one catalog row only in this disposable database.
 product_id="$(python3 -c 'import uuid; print(uuid.uuid4())')"

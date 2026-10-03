@@ -14,10 +14,6 @@ pipeline {
             description: 'Push tested images from the main branch to the registry')
         booleanParam(name: 'DEPLOY_TO_K8S', defaultValue: false,
             description: 'Deploy the published images and check the public endpoint')
-        string(name: 'REGISTRY_HOST', defaultValue: 'registry.example.com',
-            description: 'Registry host, with an optional port')
-        string(name: 'REGISTRY_NAMESPACE', defaultValue: 'order-support',
-            description: 'Repository namespace in the registry')
         string(name: 'KUBE_NAMESPACE', defaultValue: 'order-support',
             description: 'Kubernetes namespace for deployment')
         string(name: 'SMOKE_BASE_URL', defaultValue: '',
@@ -47,12 +43,6 @@ pipeline {
         stage('Validate release settings') {
             steps {
                 script {
-                    if (!(params.REGISTRY_HOST ==~ /[A-Za-z0-9][A-Za-z0-9.-]*(?::[0-9]{2,5})?/)) {
-                        error('REGISTRY_HOST must be a host with an optional port')
-                    }
-                    if (!(params.REGISTRY_NAMESPACE ==~ /[a-z0-9]+(?:[._\/-][a-z0-9]+)*/)) {
-                        error('REGISTRY_NAMESPACE contains invalid characters')
-                    }
                     if (!(params.KUBE_NAMESPACE ==~ /[a-z0-9](?:[-a-z0-9]*[a-z0-9])?/) ||
                             params.KUBE_NAMESPACE.length() > 63) {
                         error('KUBE_NAMESPACE must be a DNS label')
@@ -64,9 +54,6 @@ pipeline {
                         if (env.BRANCH_NAME != 'main') {
                             error('Publishing is allowed only from the main branch of a Multibranch Pipeline')
                         }
-                        if (params.REGISTRY_HOST == 'registry.example.com') {
-                            error('Set REGISTRY_HOST to the real private registry before publishing')
-                        }
                     }
                     if (params.DEPLOY_TO_K8S) {
                         if (!(params.SMOKE_BASE_URL ==~ /https?:\/\/[^\s]+/)) {
@@ -76,8 +63,6 @@ pipeline {
                             error('Kubernetes manifests from Task 9 are required for deployment')
                         }
                     }
-                    env.IMAGE_PREFIX = "${params.REGISTRY_HOST}/${params.REGISTRY_NAMESPACE}"
-                    env.REGISTRY_HOST = params.REGISTRY_HOST
                     env.KUBE_NAMESPACE = params.KUBE_NAMESPACE
                 }
             }
@@ -90,6 +75,12 @@ set -euo pipefail
 gitleaks git --no-banner --redact --report-format sarif --report-path reports/gitleaks-history.sarif .
 gitleaks dir --no-banner --redact --report-format sarif --report-path reports/gitleaks-worktree.sarif .
 '''
+            }
+        }
+
+        stage('Publish helper tests') {
+            steps {
+                sh 'infra/jenkins/test-publish-images.sh'
             }
         }
 
@@ -146,9 +137,9 @@ npm run build 2>&1 | tee ../reports/frontend-build.log
                 sh '''#!/usr/bin/env bash
 set -euo pipefail
 for service in order-service support-service notification-service; do
-    docker build -t "$IMAGE_PREFIX/$service:$IMAGE_TAG" "backend/$service"
+    docker build -t "order-support/$service:$IMAGE_TAG" "backend/$service"
 done
-docker build -t "$IMAGE_PREFIX/frontend:$IMAGE_TAG" frontend
+docker build -t "order-support/frontend:$IMAGE_TAG" frontend
 '''
             }
         }
@@ -157,7 +148,7 @@ docker build -t "$IMAGE_PREFIX/frontend:$IMAGE_TAG" frontend
             steps {
                 sh '''#!/usr/bin/env bash
 set -euo pipefail
-scripts/verify-e2e.sh 2>&1 | tee reports/e2e.log
+SMOKE_USE_EXISTING_IMAGES=1 scripts/verify-e2e.sh 2>&1 | tee reports/e2e.log
 '''
             }
         }
@@ -165,25 +156,13 @@ scripts/verify-e2e.sh 2>&1 | tee reports/e2e.log
         stage('Publish images') {
             when { expression { params.PUBLISH_IMAGES } }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'container-registry',
-                        usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASSWORD')]) {
-                    sh '''#!/usr/bin/env bash
-set -euo pipefail
-set +x
-export DOCKER_CONFIG="$(mktemp -d)"
-trap 'python3 -c '\''import shutil,sys; shutil.rmtree(sys.argv[1])'\'' "$DOCKER_CONFIG"' EXIT
-printf '%s' "$REGISTRY_PASSWORD" | docker login "$REGISTRY_HOST" \
-    --username "$REGISTRY_USER" --password-stdin
-for service in order-service support-service notification-service frontend; do
-    if docker manifest inspect "$IMAGE_PREFIX/$service:$IMAGE_TAG" >/dev/null 2>&1; then
-        echo "Immutable image tag already exists: $service:$IMAGE_TAG" >&2
-        exit 1
-    fi
-done
-for service in order-service support-service notification-service frontend; do
-    docker push "$IMAGE_PREFIX/$service:$IMAGE_TAG"
-done
-'''
+                withCredentials([
+                    string(credentialsId: 'release-registry', variable: 'RELEASE_IMAGE_PREFIX'),
+                    string(credentialsId: 'registry-immutable-tags', variable: 'REGISTRY_IMMUTABILITY_CONFIRMED'),
+                    usernamePassword(credentialsId: 'container-registry',
+                        usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASSWORD')
+                ]) {
+                    sh 'infra/jenkins/publish-images.sh'
                 }
             }
         }
@@ -191,13 +170,16 @@ done
         stage('Deploy to Kubernetes') {
             when { expression { params.DEPLOY_TO_K8S } }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                withCredentials([
+                    file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG'),
+                    string(credentialsId: 'release-registry', variable: 'RELEASE_IMAGE_PREFIX')
+                ]) {
                     sh '''#!/usr/bin/env bash
 set -euo pipefail
 kubectl -n "$KUBE_NAMESPACE" apply -k infra/kubernetes
 for service in order-service support-service notification-service frontend; do
     kubectl -n "$KUBE_NAMESPACE" set image "deployment/$service" \
-        "$service=$IMAGE_PREFIX/$service:$IMAGE_TAG"
+        "$service=$RELEASE_IMAGE_PREFIX/$service:$IMAGE_TAG"
     kubectl -n "$KUBE_NAMESPACE" rollout status "deployment/$service" --timeout=300s
 done
 '''
