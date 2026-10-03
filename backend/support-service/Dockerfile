@@ -5,7 +5,10 @@ COPY src ./src
 RUN mvn -B -q package -DskipTests
 
 FROM eclipse-temurin:21-jre
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /workspace/target/support-service-0.0.1-SNAPSHOT.jar app.jar
+USER 10001:10001
 EXPOSE 8082
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

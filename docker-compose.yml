@@ -18,7 +18,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -40,6 +40,7 @@ services:
       retries: 10
 
   order-service:
+    image: order-support/order-service:${IMAGE_TAG:-local}
     build:
       context: ./backend/order-service
     environment:
@@ -53,20 +54,23 @@ services:
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-order_support}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-order_support}
     ports:
-      - "8081:8081"
+      - "${ORDER_HOST_PORT:-8081}:8081"
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8081/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 40s
+      start_period: 90s
 
   support-service:
+    image: order-support/support-service:${IMAGE_TAG:-local}
     build:
       context: ./backend/support-service
     environment:
@@ -80,20 +84,23 @@ services:
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-order_support}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-order_support}
     ports:
-      - "8082:8082"
+      - "${SUPPORT_HOST_PORT:-8082}:8082"
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      order-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8082/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 30s
+      start_period: 90s
 
   notification-service:
+    image: order-support/notification-service:${IMAGE_TAG:-local}
     build:
       context: ./backend/notification-service
     environment:
@@ -106,7 +113,7 @@ services:
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-order_support}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-order_support}
     ports:
-      - "8083:8083"
+      - "${NOTIFICATION_HOST_PORT:-8083}:8083"
     depends_on:
       postgres:
         condition: service_healthy
@@ -117,7 +124,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 30s
+      start_period: 90s
+
+  frontend:
+    image: order-support/frontend:${IMAGE_TAG:-local}
+    build:
+      context: ./frontend
+    ports:
+      - "${FRONTEND_HOST_PORT:-8080}:80"
+    depends_on:
+      order-service:
+        condition: service_healthy
+      support-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
 
 volumes:
   postgres-data:

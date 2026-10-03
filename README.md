@@ -17,13 +17,13 @@ Portfolio project for an order and support platform built with Java 21, Spring B
 
 ## Run the local stack
 
-Copy `.env.example` to `.env` if you want to customize local credentials, then start the dependencies and APIs:
+Copy `.env.example` to `.env` if you want to customize local credentials or host ports, then build and start the complete stack:
 
 ```bash
-docker compose up --build
+docker compose up -d --build --wait
 ```
 
-The services expose health at `/actuator/health`. PostgreSQL is available on `localhost:5432`, Redis on `localhost:6379`, and RabbitMQ on `localhost:5672`; the RabbitMQ management console is at `http://localhost:15672`.
+Open the Angular dashboard at `http://localhost:8080`. Nginx serves it and proxies API calls to the three services. The services expose health at `/actuator/health`. PostgreSQL is available on `localhost:5432`, Redis on `localhost:6379`, and RabbitMQ on `localhost:5672`; the RabbitMQ management console is at `http://localhost:15672`. All host ports can be changed in `.env`.
 
 | API | Local address |
 | --- | --- |
@@ -31,6 +31,14 @@ The services expose health at `/actuator/health`. PostgreSQL is available on `lo
 | Support | `http://localhost:8082` |
 | Notification | `http://localhost:8083` |
 
-Start the dashboard separately with `cd frontend && npm ci && npm start`. Development API URLs are in `src/environments/environment.ts`; production replacements are configured in `angular.json`.
+For frontend development outside containers, run `cd frontend && npm ci && npm start`. Development API URLs are in `src/environments/environment.ts`; the container build uses the production API prefixes through Nginx.
 
 To start only data dependencies, use `docker compose up -d postgres redis rabbitmq`.
+
+## End-to-end verification
+
+Run `scripts/verify-e2e.sh` with Docker Compose and Python 3 available. It builds the four images, starts a separate temporary Compose project with its own database and host ports, seeds one disposable product, then checks the Angular route, registration, login, product listing, order creation, ticket creation, and the resulting customer notification through the frontend proxy. It removes its containers and database volume afterward. Set `KEEP_SMOKE_STACK=1` to retain a run for inspection.
+
+The smoke test seeds a product through PostgreSQL because public registration only grants the CUSTOMER role and product creation requires ADMIN. The normal stack does not seed users or catalog data.
+
+If startup fails, inspect `docker compose ps` and `docker compose logs <service>`. The API containers use their `/actuator/health` endpoints for health checks; Compose waits for PostgreSQL, Redis, and RabbitMQ before starting dependent services. If a host port is occupied, change the corresponding `*_HOST_PORT` value in `.env`.
