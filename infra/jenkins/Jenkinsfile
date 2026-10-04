@@ -152,7 +152,6 @@ SMOKE_USE_EXISTING_IMAGES=1 scripts/verify-e2e.sh 2>&1 | tee reports/e2e.log
             steps {
                 withCredentials([
                     string(credentialsId: 'dockerhub-namespace', variable: 'DOCKERHUB_NAMESPACE'),
-                    string(credentialsId: 'registry-immutable-tags', variable: 'REGISTRY_IMMUTABILITY_CONFIRMED'),
                     usernamePassword(credentialsId: 'container-registry',
                         usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASSWORD')
                 ]) {

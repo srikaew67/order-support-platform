@@ -9,7 +9,9 @@ cat > "$test_dir/docker" <<'SH'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$DOCKER_TEST_LOG"
 case "$1 $2" in
-  'image inspect') echo 'sha256:test-image';;
+  'image inspect')
+    target="${!#}"
+    if [[ "$target" == tnk67/* ]]; then echo "${target%@*}@sha256:test-digest"; else echo 'sha256:test-image'; fi;;
   'manifest inspect')
     case "$MANIFEST_MODE" in
       missing) echo 'manifest unknown: manifest unknown' >&2; exit 1;;
@@ -32,7 +34,6 @@ export IMAGE_TAG="sha-$(printf 'a%.0s' {1..40})"
 export DOCKERHUB_NAMESPACE='tnk67'
 export REGISTRY_USER='test-user'
 export REGISTRY_PASSWORD='test-password'
-export REGISTRY_IMMUTABILITY_CONFIRMED='enabled'
 
 for mode in missing dockerhub_missing existing network unauthorized; do
   export MANIFEST_MODE="$mode"

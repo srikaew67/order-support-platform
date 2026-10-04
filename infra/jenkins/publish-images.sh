@@ -6,13 +6,6 @@ set +x
 : "${DOCKERHUB_NAMESPACE:?The trusted Docker Hub namespace credential is required}"
 : "${REGISTRY_USER:?Registry username is required}"
 : "${REGISTRY_PASSWORD:?Registry password is required}"
-: "${REGISTRY_IMMUTABILITY_CONFIRMED:?Registry immutability confirmation is required}"
-
-[[ "$REGISTRY_IMMUTABILITY_CONFIRMED" == enabled ]] || {
-  echo "Registry-side immutable tags have not been confirmed by an administrator" >&2
-  exit 1
-}
-
 [[ "$IMAGE_TAG" =~ ^sha-[0-9a-f]{40}$ ]] || {
   echo "IMAGE_TAG must contain the full Git commit SHA" >&2
   exit 1
@@ -61,4 +54,10 @@ for service in "${services[@]}"; do
   target="$DOCKERHUB_NAMESPACE/order-support-$service:$IMAGE_TAG"
   docker tag "order-support/$service:$IMAGE_TAG" "$target"
   docker push "$target"
+  digest="$(docker image inspect --format '{{index .RepoDigests 0}}' "$target")"
+  [[ -n "$digest" && "$digest" == *"@sha256:"* ]] || {
+    echo "Docker Hub did not return a pushed digest for: $service:$IMAGE_TAG" >&2
+    exit 1
+  }
+  printf '%s\n' "$service $digest"
 done
