@@ -151,7 +151,7 @@ SMOKE_USE_EXISTING_IMAGES=1 scripts/verify-e2e.sh 2>&1 | tee reports/e2e.log
             when { expression { params.PUBLISH_IMAGES } }
             steps {
                 withCredentials([
-                    string(credentialsId: 'release-registry', variable: 'RELEASE_IMAGE_PREFIX'),
+                    string(credentialsId: 'dockerhub-namespace', variable: 'DOCKERHUB_NAMESPACE'),
                     string(credentialsId: 'registry-immutable-tags', variable: 'REGISTRY_IMMUTABILITY_CONFIRMED'),
                     usernamePassword(credentialsId: 'container-registry',
                         usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASSWORD')
@@ -166,14 +166,14 @@ SMOKE_USE_EXISTING_IMAGES=1 scripts/verify-e2e.sh 2>&1 | tee reports/e2e.log
             steps {
                 withCredentials([
                     file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG'),
-                    string(credentialsId: 'release-registry', variable: 'RELEASE_IMAGE_PREFIX')
+                    string(credentialsId: 'dockerhub-namespace', variable: 'DOCKERHUB_NAMESPACE')
                 ]) {
                     sh '''#!/usr/bin/env bash
 set -euo pipefail
 kubectl -n "$KUBE_NAMESPACE" apply -k infra/kubernetes
 for service in order-service support-service notification-service frontend; do
     kubectl -n "$KUBE_NAMESPACE" set image "deployment/$service" \
-        "$service=$RELEASE_IMAGE_PREFIX/$service:$IMAGE_TAG"
+        "$service=$DOCKERHUB_NAMESPACE/order-support-$service:$IMAGE_TAG"
     kubectl -n "$KUBE_NAMESPACE" rollout status "deployment/$service" --timeout=300s
 done
 '''

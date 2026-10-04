@@ -29,7 +29,7 @@ chmod +x "$test_dir/docker"
 export PATH="$test_dir:$PATH"
 export DOCKER_TEST_LOG="$test_dir/docker.log"
 export IMAGE_TAG="sha-$(printf 'a%.0s' {1..40})"
-export RELEASE_IMAGE_PREFIX='registry.example.test/team'
+export DOCKERHUB_NAMESPACE='tnk67'
 export REGISTRY_USER='test-user'
 export REGISTRY_PASSWORD='test-password'
 export REGISTRY_IMMUTABILITY_CONFIRMED='enabled'
@@ -51,7 +51,7 @@ for mode in missing dockerhub_missing existing network unauthorized; do
   fi
 done
 
-RELEASE_IMAGE_PREFIX='attacker.example.test/team/$(touch /tmp/unsafe)' \
+DOCKERHUB_NAMESPACE='attacker.example.test/team/$(touch /tmp/unsafe)' \
   "$root_dir/infra/jenkins/publish-images.sh" > "$test_dir/invalid.out" 2>&1 && {
     echo "Invalid release prefix was accepted" >&2; exit 1;
   }

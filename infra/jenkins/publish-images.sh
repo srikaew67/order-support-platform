@@ -3,7 +3,7 @@ set -euo pipefail
 set +x
 
 : "${IMAGE_TAG:?A full commit SHA image tag is required}"
-: "${RELEASE_IMAGE_PREFIX:?The trusted release-registry credential is required}"
+: "${DOCKERHUB_NAMESPACE:?The trusted Docker Hub namespace credential is required}"
 : "${REGISTRY_USER:?Registry username is required}"
 : "${REGISTRY_PASSWORD:?Registry password is required}"
 : "${REGISTRY_IMMUTABILITY_CONFIRMED:?Registry immutability confirmation is required}"
@@ -17,11 +17,11 @@ set +x
   echo "IMAGE_TAG must contain the full Git commit SHA" >&2
   exit 1
 }
-[[ "$RELEASE_IMAGE_PREFIX" =~ ^[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]{2,5})?/[a-z0-9]+([._/-][a-z0-9]+)*$ ]] || {
-  echo "Invalid trusted registry/repository prefix" >&2
+[[ "$DOCKERHUB_NAMESPACE" =~ ^[a-z0-9][a-z0-9_-]{1,38}$ ]] || {
+  echo "Invalid Docker Hub namespace" >&2
   exit 1
 }
-registry_host="${RELEASE_IMAGE_PREFIX%%/*}"
+registry_host='docker.io'
 services=(order-service support-service notification-service frontend)
 
 for service in "${services[@]}"; do
@@ -42,7 +42,7 @@ printf '%s' "$REGISTRY_PASSWORD" | docker login "$registry_host" \
 # Continue only when the registry explicitly reports that every manifest is absent.
 # A network, authorization, or other inspection error stops publication.
 for service in "${services[@]}"; do
-  target="$RELEASE_IMAGE_PREFIX/$service:$IMAGE_TAG"
+  target="$DOCKERHUB_NAMESPACE/order-support-$service:$IMAGE_TAG"
   result=0
   inspection="$(docker manifest inspect "$target" 2>&1)" || result=$?
   if (( result == 0 )); then
@@ -58,7 +58,7 @@ for service in "${services[@]}"; do
 done
 
 for service in "${services[@]}"; do
-  target="$RELEASE_IMAGE_PREFIX/$service:$IMAGE_TAG"
+  target="$DOCKERHUB_NAMESPACE/order-support-$service:$IMAGE_TAG"
   docker tag "order-support/$service:$IMAGE_TAG" "$target"
   docker push "$target"
 done
