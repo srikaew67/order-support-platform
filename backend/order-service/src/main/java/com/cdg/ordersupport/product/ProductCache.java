@@ -3,9 +3,11 @@ package com.cdg.ordersupport.product;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -37,8 +39,11 @@ public class ProductCache {
     }
 
     public void invalidateAll() {
-        Set<String> keys = redis.keys("products:*");
-        if (keys != null && !keys.isEmpty()) redis.delete(keys);
+        Set<String> keys = new HashSet<>();
+        try (var cursor = redis.scan(ScanOptions.scanOptions().match("products:*").count(100).build())) {
+            while (cursor.hasNext()) keys.add(cursor.next());
+        }
+        if (!keys.isEmpty()) redis.delete(keys);
     }
 
     private <T> Optional<T> read(String key, Class<T> type) {

@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
@@ -27,7 +29,15 @@ class ProductCacheTest {
             values.put(call.getArgument(0), call.getArgument(1));
             return null;
         }).when(operations).set(anyString(), anyString(), any(Duration.class));
-        when(redis.keys("products:*")).thenAnswer(call -> java.util.Set.copyOf(values.keySet()));
+        var scanned = new java.util.ArrayList<String>();
+        @SuppressWarnings("unchecked") Cursor<String> cursor = mock(Cursor.class);
+        when(redis.scan(any(ScanOptions.class))).thenAnswer(call -> {
+            scanned.clear();
+            scanned.addAll(values.keySet());
+            return cursor;
+        });
+        when(cursor.hasNext()).thenAnswer(call -> !scanned.isEmpty());
+        when(cursor.next()).thenAnswer(call -> scanned.removeFirst());
         when(redis.delete(anyCollection())).thenAnswer(call -> {
             var keys = (java.util.Collection<?>) call.getArgument(0);
             keys.forEach(values::remove);
@@ -44,6 +54,8 @@ class ProductCacheTest {
         assertEquals("Desk", cache.readPage(0, 12).orElseThrow().content().getFirst().name());
         assertEquals("Oak", cache.readProduct(id).orElseThrow().description());
         cache.invalidateAll();
+        verify(redis).scan(any(ScanOptions.class));
+        verify(redis, never()).keys(anyString());
         assertTrue(cache.readPage(0, 12).isEmpty());
         assertTrue(cache.readProduct(id).isEmpty());
     }

@@ -49,6 +49,10 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-order_support}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-order_support}
       JWT_SECRET: ${JWT_SECRET:?Set a private JWT_SECRET in .env or the shell before starting Compose}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:8080,http://localhost:4200}
+      DEMO_DATA_ENABLED: ${DEMO_DATA_ENABLED:-false}
+      DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:-admin@order-support.local}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-}
       REDIS_HOST: redis
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-order_support}
@@ -79,6 +83,7 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-order_support}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-order_support}
       JWT_SECRET: ${JWT_SECRET:?Set a private JWT_SECRET in .env or the shell before starting Compose}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:8080,http://localhost:4200}
       ORDER_SERVICE_URL: http://order-service:8081
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-order_support}
@@ -109,6 +114,7 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-order_support}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-order_support}
       JWT_SECRET: ${JWT_SECRET:?Set a private JWT_SECRET in .env or the shell before starting Compose}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:8080,http://localhost:4200}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-order_support}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-order_support}
